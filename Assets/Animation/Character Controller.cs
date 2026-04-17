@@ -1,189 +1,131 @@
 using UnityEngine;
-
 using UnityEngine.InputSystem;
-
- 
+using UnityEngine.Events;
 
 [RequireComponent(typeof(CharacterController))]
-
 [RequireComponent(typeof(Animator))]
-
 public class PlayerMovement : MonoBehaviour
-
 {
-
     private CharacterController controller;
-
     private Animator animator;
-
-    private PlayerControl PlayerControl; 
-
+    private PlayerControl playerActions;
     private Vector2 moveInput;
-
-    
-
-    // Tracks whether the sprint button is being held down
-
-    private bool isSprinting; 
-
- 
+    private bool isSprinting;
+    private Vector3 velocity;
 
     [Header("Movement Settings")]
-
     public float walkSpeed = 3.0f;
+    public float runSpeed = 6.0f;
+    public float gravity = -9.81f;
 
-    public float runSpeed = 6.0f; 
+    [Header("Rotation References")]
+    [Tooltip("Karakterin içindeki boþ 'Head' objesi")]
+    public Transform headTransform;
+    [Tooltip("Hiyerarþideki 'Main Camera' objesi")]
+    public Transform cameraTransform;
 
-    public float rotationSpeed = 10.0f;
-
-    
+    [Header("Interaction (Raycasting)")]
+    public float interactDistance = 3f;
+    public UnityEvent onInteract;
 
     [Header("Animation Settings")]
-
     public float speedDampTime = 0.1f;
 
- 
-
     private void Awake()
-
     {
-
         controller = GetComponent<CharacterController>();
-
         animator = GetComponent<Animator>();
+        playerActions = new PlayerControl();
 
-        PlayerControl = new PlayerControl();
+        // Mouse kilitleme
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
- 
-
-        // Movement input listeners
-
-        PlayerControl.Player.Move.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
-
-        PlayerControl.Player.Move.canceled += ctx => moveInput = Vector2.zero;
-
- 
-
-        // Sprint input listeners (Button press and release)
-
-        PlayerControl.Player.Sprint.performed += ctx => isSprinting = true;
-
-        PlayerControl.Player.Sprint.canceled += ctx => isSprinting = false;
-
+        // Input System Eventleri
+        playerActions.Player.Move.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
+        playerActions.Player.Move.canceled += ctx => moveInput = Vector2.zero;
+        playerActions.Player.Sprint.performed += ctx => isSprinting = true;
+        playerActions.Player.Sprint.canceled += ctx => isSprinting = false;
     }
 
- 
-
-    private void OnEnable()
-
-    {
-
-        PlayerControl.Player.Enable();
-
-    }
-
- 
-
-    private void OnDisable()
-
-    {
-
-        PlayerControl.Player.Disable();
-
-    }
-
- 
+    private void OnEnable() => playerActions.Player.Enable();
+    private void OnDisable() => playerActions.Player.Disable();
 
     private void Update()
-
     {
-
+        HandleRotation();
         HandleMovement();
-
-        HandleAnimation();
-
+        ApplyGravity();
+        HandleInteraction();
+        UpdateAnimations();
     }
 
- 
+    private void HandleRotation()
+    {
+        if (cameraTransform == null) return;
+
+        // Kritik Nokta: Karakterin gövdesi sadece kameranýn Y (saða-sola) açýsýna bakar.
+        // Bu sayede yukarý bakarken karakter öne devrilmez, titreme yapmaz.
+        float cameraYRotation = cameraTransform.eulerAngles.y;
+        transform.rotation = Quaternion.Euler(0, cameraYRotation, 0);
+    }
 
     private void HandleMovement()
-
     {
+        if (cameraTransform == null) return;
 
-        // Calculate movement strictly based on World Space (X and Z axes)
+        // Hareket yönünü kameraya göre hesapla
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+        forward.y = 0; right.y = 0;
+        forward.Normalize(); right.Normalize();
 
-        // Ignored camera orientation entirely.
-
-        Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
-
- 
+        Vector3 moveDirection = forward * moveInput.y + right * moveInput.x;
 
         if (moveDirection.magnitude >= 0.1f)
-
         {
-
-            // Rotate the character to face the global movement direction
-
-            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-
-            
-
-            // Determine physical speed based on sprint state
-
-            float currentMoveSpeed = isSprinting ? runSpeed : walkSpeed;
-
-            
-
-            // Move the character globally
-
-            controller.Move(moveDirection * currentMoveSpeed * Time.deltaTime);
-
+            float speed = isSprinting ? runSpeed : walkSpeed;
+            controller.Move(moveDirection * speed * Time.deltaTime);
         }
-
-        
-
-        // Simple Gravity
-
-        if (!controller.isGrounded)
-
-        {
-
-            controller.Move(new Vector3(0, -9.81f, 0) * Time.deltaTime);
-
-        }
-
     }
 
- 
-
-    private void HandleAnimation()
-
+    private void ApplyGravity()
     {
-
-        float inputMagnitude = moveInput.magnitude;
-
-        float targetAnimationSpeed = 0f;
-
- 
-
-        if (inputMagnitude > 0.1f)
-
+        if (controller.isGrounded && velocity.y < 0)
         {
-
-            // 1.0 for Run, 0.5 for Walk
-
-            targetAnimationSpeed = isSprinting ? 1.0f : 0.5f;
-
+            velocity.y = -2f;
         }
-
- 
-
-        // Send the smoothed value to the Animator
-
-        animator.SetFloat("Speed", targetAnimationSpeed, speedDampTime, Time.deltaTime);
-
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
     }
 
+    private void HandleInteraction()
+    {
+        if (cameraTransform == null) return;
+
+        // Raycasting: Kameranýn merkezinden ileriye ýþýn atar
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
+        {
+            if (hit.collider.CompareTag("Terminal"))
+            {
+                Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.green);
+                if (Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    Debug.Log("Terminale etkileþim saðlandý!");
+                    onInteract.Invoke();
+                }
+            }
+            else
+            {
+                Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.red);
+            }
+        }
+    }
+
+    private void UpdateAnimations()
+    {
+        float targetSpeed = moveInput.magnitude > 0.1f ? (isSprinting ? 1.0f : 0.5f) : 0f;
+        animator.SetFloat("Speed", targetSpeed, speedDampTime, Time.deltaTime);
+    }
 }
