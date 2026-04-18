@@ -8,6 +8,9 @@ TagManager:
   - HappyZone
   - DanceZone
   - IdleZone
+  - Terminal
+  - Mermi
+  - Enemy
   layers:
   - Default
   - TransparentFX

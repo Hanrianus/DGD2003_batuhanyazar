@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Events;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Animator))]
@@ -18,15 +17,16 @@ public class PlayerMovement : MonoBehaviour
     public float runSpeed = 6.0f;
     public float gravity = -9.81f;
 
-    [Header("Rotation References")]
-    [Tooltip("Karakterin içindeki boþ 'Head' objesi")]
+    [Header("Status")]
+    public bool isHacking = false;
+
+    [Header("Rotation & Camera")]
     public Transform headTransform;
-    [Tooltip("Hiyerarþideki 'Main Camera' objesi")]
     public Transform cameraTransform;
 
     [Header("Interaction (Raycasting)")]
     public float interactDistance = 3f;
-    public UnityEvent onInteract;
+    public LayerMask interactableLayer;
 
     [Header("Animation Settings")]
     public float speedDampTime = 0.1f;
@@ -37,11 +37,9 @@ public class PlayerMovement : MonoBehaviour
         animator = GetComponent<Animator>();
         playerActions = new PlayerControl();
 
-        // Mouse kilitleme
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Input System Eventleri
         playerActions.Player.Move.performed += ctx => moveInput = ctx.ReadValue<Vector2>();
         playerActions.Player.Move.canceled += ctx => moveInput = Vector2.zero;
         playerActions.Player.Sprint.performed += ctx => isSprinting = true;
@@ -53,6 +51,14 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        // --- TERMÝNAL KONTROLÜ ---
+        if (isHacking)
+        {
+            // Hack yaparken hýzý sýfýrla ve fonksiyonu burada bitir
+            animator.SetFloat("Speed", 0);
+            return; // Altýndaki Rotation ve Movement kodlarý okunmaz (Kamera Kilitlenir)
+        }
+
         HandleRotation();
         HandleMovement();
         ApplyGravity();
@@ -62,10 +68,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleRotation()
     {
+        // Eðer Cinemachine kullanýyorsan bu blok kameranýn bakýþýný karakterin gövdesine yansýtýr.
         if (cameraTransform == null) return;
 
-        // Kritik Nokta: Karakterin gövdesi sadece kameranýn Y (saða-sola) açýsýna bakar.
-        // Bu sayede yukarý bakarken karakter öne devrilmez, titreme yapmaz.
         float cameraYRotation = cameraTransform.eulerAngles.y;
         transform.rotation = Quaternion.Euler(0, cameraYRotation, 0);
     }
@@ -74,7 +79,6 @@ public class PlayerMovement : MonoBehaviour
     {
         if (cameraTransform == null) return;
 
-        // Hareket yönünü kameraya göre hesapla
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
         forward.y = 0; right.y = 0;
@@ -103,17 +107,23 @@ public class PlayerMovement : MonoBehaviour
     {
         if (cameraTransform == null) return;
 
-        // Raycasting: Kameranýn merkezinden ileriye ýþýn atar
         Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
-        if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, interactDistance))
         {
             if (hit.collider.CompareTag("Terminal"))
             {
                 Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.green);
+
                 if (Keyboard.current.eKey.wasPressedThisFrame)
                 {
-                    Debug.Log("Terminale etkileþim saðlandý!");
-                    onInteract.Invoke();
+                    TerminalController currentTerminal = hit.collider.GetComponent<TerminalController>();
+
+                    if (currentTerminal != null)
+                    {
+                        currentTerminal.ActivateTerminal(this.gameObject);
+                    }
                 }
             }
             else
