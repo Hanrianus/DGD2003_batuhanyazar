@@ -2657,8 +2657,11 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Quest:Hack the terminals, find the correct room with the password, and
+  m_text: 'Quest:Hack the terminals, find the correct room with the password, and
     open the brown computer lab door.
+
+    (press e to hack terminals and use wasd
+    to move ship and use space to shoot.)'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

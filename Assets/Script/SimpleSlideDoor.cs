@@ -28,6 +28,6 @@ public class SimpleSlideDoor : MonoBehaviour
     {
         targetPos = closedPos + slideDirection;
         opening = true;
-        Debug.Log("Özel Script: Kapý açýlma komutu alýndý!");
+        Debug.Log("Özel Script: Kapý açýlma komutu alýndý");
     }
 }
