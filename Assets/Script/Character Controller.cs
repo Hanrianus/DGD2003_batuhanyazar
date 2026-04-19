@@ -51,12 +51,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        // --- TERMÝNAL KONTROLÜ ---
+        
         if (isHacking)
         {
-            // Hack yaparken hýzý sýfýrla ve fonksiyonu burada bitir
             animator.SetFloat("Speed", 0);
-            return; // Altýndaki Rotation ve Movement kodlarý okunmaz (Kamera Kilitlenir)
+            return;
         }
 
         HandleRotation();
@@ -68,7 +67,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleRotation()
     {
-        // Eðer Cinemachine kullanýyorsan bu blok kameranýn bakýþýný karakterin gövdesine yansýtýr.
         if (cameraTransform == null) return;
 
         float cameraYRotation = cameraTransform.eulerAngles.y;
@@ -110,20 +108,27 @@ public class PlayerMovement : MonoBehaviour
         Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
         RaycastHit hit;
 
+       
         if (Physics.Raycast(ray, out hit, interactDistance))
         {
+            
             if (hit.collider.CompareTag("Terminal"))
             {
                 Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.green);
-
                 if (Keyboard.current.eKey.wasPressedThisFrame)
                 {
-                    TerminalController currentTerminal = hit.collider.GetComponent<TerminalController>();
-
-                    if (currentTerminal != null)
-                    {
-                        currentTerminal.ActivateTerminal(this.gameObject);
-                    }
+                    TerminalController terminal = hit.collider.GetComponent<TerminalController>();
+                    if (terminal != null) terminal.ActivateTerminal(this.gameObject);
+                }
+            }
+           
+            else if (hit.collider.GetComponent<KeypadSystem>() != null)
+            {
+                Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.blue);
+                if (Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    KeypadSystem keypad = hit.collider.GetComponent<KeypadSystem>();
+                    if (keypad != null) keypad.OpenKeypad();
                 }
             }
             else
