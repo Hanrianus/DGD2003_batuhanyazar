@@ -1,35 +1,59 @@
 using UnityEngine;
-using UnityEngine.InputSystem; 
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
     [Header("Hareket Ayarlarý")]
     public float speed = 6f;
+    public float gravity = 9.81f; 
+
+    private CharacterController controller;
+    private Vector3 velocity;
+
+    void Start()
+    {
+        
+        controller = GetComponent<CharacterController>();
+    }
 
     void Update()
     {
-        Vector2 moveInput = Vector2.zero;
+        Vector3 moveDirection = Vector3.zero;
 
-        
         if (Keyboard.current != null)
         {
-            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) moveInput.y = 1f;
-            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) moveInput.y = -1f;
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) moveInput.x = -1f;
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) moveInput.x = 1f;
+            if (Keyboard.current.wKey.isPressed) moveDirection.z += 1f;
+            if (Keyboard.current.sKey.isPressed) moveDirection.z -= 1f;
+            if (Keyboard.current.aKey.isPressed) moveDirection.x -= 1f;
+            if (Keyboard.current.dKey.isPressed) moveDirection.x += 1f;
         }
 
-       
-        Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
-
-        
-        transform.Translate(moveDirection * speed * Time.deltaTime, Space.World);
+        moveDirection = moveDirection.normalized;
 
         
         if (moveDirection != Vector3.zero)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 720f * Time.deltaTime);
+        }
+
+        
+        if (controller.isGrounded)
+        {
+            velocity.y = -2f; 
+        }
+        else
+        {
+            velocity.y -= gravity * Time.deltaTime; 
+        }
+
+        
+        Vector3 finalMove = (moveDirection * speed) + velocity;
+
+        
+        if (controller != null)
+        {
+            controller.Move(finalMove * Time.deltaTime);
         }
     }
 }
