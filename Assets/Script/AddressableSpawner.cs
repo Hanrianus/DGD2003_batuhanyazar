@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.AddressableAssets; // KRİTİK: Addressables paketinin komutlarını kullanabilmek için bu kütüphane şarttır!
+using UnityEngine.AddressableAssets; 
 
 public class AddressableSpawner : MonoBehaviour
 {
@@ -7,27 +7,37 @@ public class AddressableSpawner : MonoBehaviour
     [Tooltip("Prefab'e verdiğin Addressable ismiyle birebir aynı olmalı (büyük/küçük harf duyarlıdır)")]
     public string addressableKey = "CollectibleSphere";
 
-    [Header("Spawn Sınırları (Harita Boyutu)")]
-    [Tooltip("Dairelerin merkezden en fazla kaç metre uzakta doğabileceğini belirler")]
-    public float spawnRange = 7f;
+    [Header("Mesafe Ayarları (Merkez Odaklı)")]
+    [Tooltip("Yeni daire merkez koordinatın en az kaç metre uzağında doğsun?")]
+    public float minSpawnDistance = 1f;
 
-    // Yeni daireyi haritada rastgele bir konumda doğuran fonksiyon
+    [Tooltip("Yeni daire merkez koordinatın en fazla kaç metre uzağında doğsun?")]
+    public float maxSpawnDistance = 6f;
+
+    [Header("Sabit Merkez Koordinat Ayarı")]
+    [Tooltip("Dairelerin etrafında rastgele dağılacağı ana merkez nokta")]
+    
+    public Vector3 centerPoint = new Vector3(31.6045494f, 35.6699982f, -101.419998f);
+
+    
     public void SpawnNewCollectible()
     {
-        // 🔍 DEBUG: Konsola mesaj basarak bu fonksiyonun tetiklendiğini doğruluyoruz
-        Debug.Log("AddressableSpawner: Yeni daire doğurma fonksiyonu tetiklendi! Addressables sistemi çağrılıyor...");
+        
+        Vector2 randomDirection = Random.insideUnitCircle.normalized;
 
-        // Belirttiğin sınırlara göre (-7 ile +7 arası gibi) rastgele X ve Z koordinatları seçiliyor
-        float randomX = Random.Range(-spawnRange, spawnRange);
-        float randomZ = Random.Range(-spawnRange, spawnRange);
+        
+        float randomDistance = Random.Range(minSpawnDistance, maxSpawnDistance);
 
-        // Kürenin havada asılı kalmaması veya zemine gömülmemesi için Y yüksekliğini 0.5f yapıyoruz
-        Vector3 spawnPosition = new Vector3(randomX, 0.5f, randomZ);
+        
+        float targetX = centerPoint.x + (randomDirection.x * randomDistance);
+        float targetZ = centerPoint.z + (randomDirection.y * randomDistance);
 
-        // 🔥 HOCANIN ARADIĞI O ÖZEL SATIR: 
-        // Objeyi klasik Instantiate ile değil, Addressables hafıza adresi üzerinden ASENKRON olarak sahneye doğuruyoruz.
+        
+        Vector3 spawnPosition = new Vector3(targetX, centerPoint.y, targetZ);
+
+        
         Addressables.InstantiateAsync(addressableKey, spawnPosition, Quaternion.identity);
 
-        Debug.Log("AddressableSpawner: '" + addressableKey + "' isimli obje " + spawnPosition + " konumunda asenkron olarak doğruldu.");
+        Debug.Log("AddressableSpawner: Yeni daire sabit merkezin etrafında, Y: " + centerPoint.y + " yüksekliğinde doğuruldu! Konum: " + spawnPosition);
     }
 }
