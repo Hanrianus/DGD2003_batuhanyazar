@@ -1,86 +1,91 @@
 ﻿using UnityEngine;
-using System.IO;
-using TMPro;
-
-[System.Serializable]
-public class GameData
-{
-    public int currentScore = 0;
-    public int highScore = 0;
-}
+using System.IO; 
+using TMPro;    
 
 public class ScoreManager : MonoBehaviour
 {
     [Header("UI Elemanları")]
     public TextMeshProUGUI scoreText;
+    public TextMeshProUGUI highScoreText;
 
-    [Header("Kayıt Verisi")]
-    public GameData data = new GameData();
-
-    private string savePath;
+    private int currentScore = 0;
+    private int highScore = 0;
+    private string saveFilePath;
 
     void Awake()
     {
-        savePath = Path.Combine(Application.persistentDataPath, "savedata.json");
+        
+        saveFilePath = Path.Combine(Application.persistentDataPath, "savedata.json");
 
         
-        LoadGameData();
+        LoadHighScore();
     }
 
     void Start()
     {
         
-        data.currentScore = 0;
-
-       
-        UpdateScoreUI();
-    }
-
-    public void AddScore(int points)
-    {
-        data.currentScore += points;
-
-        if (data.currentScore > data.highScore)
-        {
-            data.highScore = data.currentScore;
-        }
-
-        UpdateScoreUI();
-    }
-
-    public void UpdateScoreUI()
-    {
-        if (scoreText != null)
-        {
-            scoreText.text = "Puan: " + data.currentScore + " | En Yüksek: " + data.highScore;
-        }
-    }
-
-   
-    public void SaveGameData()
-    {
-        string jsonText = JsonUtility.ToJson(data, true);
-        File.WriteAllText(savePath, jsonText);
-        Debug.Log("Oyun Verileri JSON Olarak Kaydedildi!");
+        UpdateUI();
     }
 
     
-    public void LoadGameData()
+    public void AddScore(int amount)
     {
-        if (File.Exists(savePath))
+        currentScore += amount;
+
+        
+        if (currentScore > highScore)
         {
-            string jsonText = File.ReadAllText(savePath);
-            data = JsonUtility.FromJson<GameData>(jsonText);
-            Debug.Log("Eski JSON Kaydı Başarıyla Yüklendi!");
+            highScore = currentScore;
+            SaveHighScore(); 
+        }
+
+        UpdateUI();
+    }
+
+    private void UpdateUI()
+    {
+        if (scoreText != null)
+            scoreText.text = "Puan: " + currentScore;
+
+        if (highScoreText != null)
+            highScoreText.text = "En Yüksek: " + highScore;
+    }
+
+   
+    private void SaveHighScore()
+    {
+        GameData data = new GameData();
+        data.highScore = highScore;
+
+        
+        string json = JsonUtility.ToJson(data, true);
+
+        
+        File.WriteAllText(saveFilePath, json);
+        Debug.Log("JSON: Yeni en yüksek puan başarıyla diske kaydedildi: " + highScore);
+    }
+
+    
+    private void LoadHighScore()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            string json = File.ReadAllText(saveFilePath);
+            GameData data = JsonUtility.FromJson<GameData>(json);
+            highScore = data.highScore;
+            Debug.Log("JSON: Eski en yüksek puan başarıyla yüklendi: " + highScore);
         }
         else
         {
-            data = new GameData();
+            
+            highScore = 0;
         }
     }
+}
 
-    void OnApplicationQuit()
-    {
-        SaveGameData();
-    }
+
+[System.Serializable]
+public class GameData
+{
+    public int highScore;
 }
